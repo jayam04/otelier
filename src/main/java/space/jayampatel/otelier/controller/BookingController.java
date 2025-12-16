@@ -23,15 +23,15 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/hotels/{hotelId}/bookings")
 public class BookingController {
-
+    
     private static final Logger logger = LoggerFactory.getLogger(BookingController.class);
-
+    
     @Autowired
     private BookingService bookingService;
-
+    
     @Autowired
     private AuthenticationContext authContext;
-
+    
     /**
      * GET /api/hotels/{hotelId}/bookings
      * List all bookings for a hotel, optionally filtered by date range
@@ -41,21 +41,21 @@ public class BookingController {
             @PathVariable String hotelId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
-
-        logger.info("GET /api/hotels/{}/bookings - startDate: {}, endDate: {}",
-                hotelId, startDate, endDate);
-
+        
+        logger.info("GET /api/hotels/{}/bookings - startDate: {}, endDate: {}", 
+                    hotelId, startDate, endDate);
+        
         List<Booking> bookings = bookingService.getBookings(hotelId, startDate, endDate);
-
+        
         // Convert to response DTOs
         List<BookingResponse> response = bookings.stream()
                 .map(BookingResponse::new)
                 .collect(Collectors.toList());
-
+        
         logger.info("Returning {} bookings", response.size());
         return ResponseEntity.ok(response);
     }
-
+    
     /**
      * POST /api/hotels/{hotelId}/bookings
      * Create a new booking (requires staff or reception role)
@@ -64,28 +64,29 @@ public class BookingController {
     public ResponseEntity<BookingResponse> createBooking(
             @PathVariable String hotelId,
             @Valid @RequestBody CreateBookingRequest request) {
-
-        logger.info("POST /api/hotels/{}/bookings - room: {}, checkIn: {}, checkOut: {}",
-                hotelId, request.getRoomNumber(), request.getCheckInDate(), request.getCheckOutDate());
-
+        
+        logger.info("POST /api/hotels/{}/bookings - room: {}, checkIn: {}, checkOut: {}", 
+                    hotelId, request.getRoomNumber(), request.getCheckInDate(), request.getCheckOutDate());
+        
         // Get current authenticated user
         String userId = authContext.getCurrentUserId();
         String userRole = authContext.getCurrentUserRole();
-
+        
         logger.info("User: {}, Role: {}", userId, userRole);
-
-        // Check if user has required role (staff, reception, or employee)
-        if (!authContext.hasAnyRole("staff", "reception", "employee")) {
+        
+        // Check if user has required role (staff or reception)
+        if (!authContext.hasAnyRole("staff", "reception")) {
             logger.warn("Unauthorized booking attempt by user: {} with role: {}", userId, userRole);
             throw new UnauthorizedException(
-                    "Only staff, reception, or employee personnel can create bookings. Your role: " + userRole);
+                "Only staff or reception personnel can create bookings. Your role: " + userRole
+            );
         }
-
+        
         // Create booking
         Booking booking = bookingService.createBooking(hotelId, request, userId);
-
+        
         logger.info("Booking created successfully: {}", booking.getId());
-
+        
         // Return response
         BookingResponse response = new BookingResponse(booking);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
