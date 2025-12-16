@@ -4,8 +4,8 @@ import space.jayampatel.otelier.dto.BookingResponse;
 import space.jayampatel.otelier.dto.CreateBookingRequest;
 import space.jayampatel.otelier.model.Booking;
 import space.jayampatel.otelier.service.BookingService;
+import space.jayampatel.otelier.service.AuthorizationService;
 import space.jayampatel.otelier.security.AuthenticationContext;
-import space.jayampatel.otelier.exception.UnauthorizedException;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -30,11 +30,14 @@ public class BookingController {
     private BookingService bookingService;
     
     @Autowired
+    private AuthorizationService authorizationService;
+    
+    @Autowired
     private AuthenticationContext authContext;
     
     /**
      * GET /api/hotels/{hotelId}/bookings
-     * List all bookings for a hotel, optionally filtered by date range
+     * List bookings for hotels user has access to
      */
     @GetMapping
     public ResponseEntity<List<BookingResponse>> getBookings(
@@ -42,12 +45,13 @@ public class BookingController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         
-        logger.info("GET /api/hotels/{}/bookings - startDate: {}, endDate: {}", 
-                    hotelId, startDate, endDate);
+        logger.info("GET /api/hotels/{}/bookings", hotelId);
+        
+        // Check hotel access
+        authorizationService.checkHotelAccess(hotelId);
         
         List<Booking> bookings = bookingService.getBookings(hotelId, startDate, endDate);
         
-        // Convert to response DTOs
         List<BookingResponse> response = bookings.stream()
                 .map(BookingResponse::new)
                 .collect(Collectors.toList());
@@ -58,36 +62,23 @@ public class BookingController {
     
     /**
      * POST /api/hotels/{hotelId}/bookings
-     * Create a new booking (requires staff or reception role)
+     * Create booking (requires staff or reception role for the hotel)
      */
     @PostMapping
     public ResponseEntity<BookingResponse> createBooking(
             @PathVariable String hotelId,
             @Valid @RequestBody CreateBookingRequest request) {
         
-        logger.info("POST /api/hotels/{}/bookings - room: {}, checkIn: {}, checkOut: {}", 
-                    hotelId, request.getRoomNumber(), request.getCheckInDate(), request.getCheckOutDate());
+        logger.info("POST /api/hotels/{}/bookings", hotelId);
         
-        // Get current authenticated user
+        // Check user has staff/reception role for this hotel
+        authorizationService.checkHotelRole(hotelId, "staff", "reception");
+        
         String userId = authContext.getCurrentUserId();
-        String userRole = authContext.getCurrentUserRole();
-        
-        logger.info("User: {}, Role: {}", userId, userRole);
-        
-        // Check if user has required role (staff or reception)
-        if (!authContext.hasAnyRole("staff", "reception")) {
-            logger.warn("Unauthorized booking attempt by user: {} with role: {}", userId, userRole);
-            throw new UnauthorizedException(
-                "Only staff or reception personnel can create bookings. Your role: " + userRole
-            );
-        }
-        
-        // Create booking
         Booking booking = bookingService.createBooking(hotelId, request, userId);
         
-        logger.info("Booking created successfully: {}", booking.getId());
+        logger.info("Booking created: {}", booking.getId());
         
-        // Return response
         BookingResponse response = new BookingResponse(booking);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }

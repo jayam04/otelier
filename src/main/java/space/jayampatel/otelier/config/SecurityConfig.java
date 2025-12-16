@@ -13,23 +13,25 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
-    
+
     @Autowired
     private JwtAuthenticationFilter jwtAuthenticationFilter;
-    
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-            .csrf(csrf -> csrf.disable()) // Disable CSRF for REST API
-            .sessionManagement(session -> 
-                session.sessionCreationPolicy(SessionCreationPolicy.STATELESS) // No sessions, JWT only
-            )
-            .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/hotels/*/bookings").authenticated() // All booking endpoints require auth
-                .anyRequest().permitAll() // Allow other endpoints (health check, etc.)
-            )
-            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class); // Add JWT filter
-        
+                .csrf(csrf -> csrf.disable()) // Disable CSRF for REST API
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS) // No
+                                                                                                             // sessions,
+                                                                                                             // JWT only
+                )
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/health", "/").permitAll()
+                        .requestMatchers("/api/hotel-assignments").hasRole("ADMIN")
+                        .requestMatchers("/api/hotels/*/bookings").authenticated()
+                        .anyRequest().permitAll())
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class); // Add JWT filter
+
         return http.build();
     }
 }
