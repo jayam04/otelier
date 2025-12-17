@@ -9,6 +9,8 @@ import org.springframework.stereotype.Component;
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
+import java.util.List;
+import java.util.Map;
 
 @Component
 public class JwtUtil {
@@ -47,15 +49,24 @@ public class JwtUtil {
     public String getRoleFromToken(String token) {
         Claims claims = validateToken(token);
 
-        // Supabase stores role in 'role' claim
-        String role = claims.get("role", String.class);
+        // 1. Try app_metadata.roles (Supabase custom roles)
+        Map<String, Object> appMetadata = claims.get("app_metadata", Map.class);
 
-        // If not found, try 'user_role' or other common claims
-        if (role == null) {
-            role = claims.get("user_role", String.class);
+        if (appMetadata != null && appMetadata.containsKey("roles")) {
+            List<String> roles = (List<String>) appMetadata.get("roles");
+            if (!roles.isEmpty()) {
+                return roles.get(0).toLowerCase();
+            }
         }
 
-        return role != null ? role : "user"; // default to 'user' if no role found
+        // 2. Fallback to standard role
+        String role = claims.get("role", String.class);
+        if (role != null) {
+            return role.toLowerCase();
+        }
+
+        // 3. Default
+        return "user";
     }
 
     /**
