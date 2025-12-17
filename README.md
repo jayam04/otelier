@@ -8,8 +8,8 @@ This project was implemented as a mini-product, focusing on clean architecture, 
 
 ## 🚀 Tech Stack
 
-* **Java 17**
-* **Spring Boot 3**
+* **Java 21**
+* **Spring Boot**
 * **Spring Web**
 * **Spring Security**
 * **Spring Data MongoDB**
