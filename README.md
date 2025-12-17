@@ -239,8 +239,6 @@ All secrets are managed via **environment variables**.
 MONGODB_URI=
 
 # Supabase
-SUPABASE_URL=
-SUPABASE_ANON_KEY=
 SUPABASE_JWT_SECRET=
 SUPABASE_ISSUER=
 
@@ -250,7 +248,6 @@ NOTIFICATION_SLACK_WEBHOOK_URL=
 # Email (optional)
 SPRING_MAIL_USERNAME=
 SPRING_MAIL_PASSWORD=
-SUPPORT_EMAIL=
 ```
 
 No secrets are committed to the repository.
