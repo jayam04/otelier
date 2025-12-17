@@ -27,11 +27,17 @@ public class SecurityConfig {
                                                                                                              // JWT only
                 )
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/health", "/").permitAll()
-                        .requestMatchers("/api/hotels").hasRole("ADMIN")
+                        .requestMatchers(
+                                "/",
+                                "/health",
+                                "/swagger-ui.html",
+                                "/swagger-ui/**",
+                                "/v3/api-docs/**")
+                        .permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/hotels").hasRole("ADMIN")
                         .requestMatchers("/api/hotel-assignments").hasRole("ADMIN")
                         .requestMatchers("/api/hotels/*/bookings").authenticated()
-                        .anyRequest().permitAll())
+                        .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class); // Add JWT filter
 
         return http.build();

@@ -12,6 +12,10 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -20,6 +24,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Collectors;
 
+@Tag(name = "Bookings", description = "Hotel booking APIs")
 @RestController
 @RequestMapping("/api/hotels/{hotelId}/bookings")
 public class BookingController {
@@ -39,6 +44,7 @@ public class BookingController {
      * GET /api/hotels/{hotelId}/bookings
      * List bookings for hotels user has access to
      */
+    @Operation(summary = "List bookings for a hotel")
     @GetMapping
     public ResponseEntity<List<BookingResponse>> getBookings(
             @PathVariable String hotelId,
@@ -64,6 +70,7 @@ public class BookingController {
      * POST /api/hotels/{hotelId}/bookings
      * Create booking (requires staff or reception role for the hotel)
      */
+    @Operation(summary = "Create a booking (staff/reception only)")
     @PostMapping
     public ResponseEntity<BookingResponse> createBooking(
             @PathVariable String hotelId,
