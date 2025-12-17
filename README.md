@@ -1,213 +1,296 @@
-# Otelier Backend Assignment
+# Otelier – Hotel Booking Backend (Spring Boot)
 
-## Overview
+A secure, production-ready backend service for hotel booking management built using **Java Spring Boot**, **MongoDB Atlas**, and **Supabase Authentication**.
 
-This project is a backend service for managing hotels and bookings with role-based access control. It uses **Spring Boot**, **MongoDB**, and **Supabase Auth (JWT-based authentication)** to securely manage users, hotels, assignments, and bookings.
-
-The system is designed to support **many-to-many relationships** between users and hotels, enabling flexible role management such as `ADMIN` and `staff`.
+This project was implemented as a mini-product, focusing on clean architecture, security, and real-world backend design patterns.
 
 ---
 
-## Tech Stack
+## 🚀 Tech Stack
 
-* **Backend:** Java, Spring Boot
-* **Database:** MongoDB (Atlas)
-* **Authentication:** Supabase Auth + JWT
-* **Build Tool:** Maven
-* **Security:** Role-based access control
-
----
-
-## System Design
-
-### Authentication Layer
-
-* Authentication is handled by **Supabase Auth**.
-* JWT tokens are used to authorize API requests.
-* The `ADMIN` role is embedded directly in the auth layer instead of MongoDB for increased security.
-
-### Database Design (MongoDB)
-
-Collections:
-
-* `hotels`
-* `hotel_assignments`
-* `bookings`
-
-> Note: A `users` table is **not used** by the application. User data is managed by Supabase Auth and derived from JWT claims. Any `users` table mentioned in the assignment document exists **only for testing and reviewer verification purposes**.
+* **Java 17**
+* **Spring Boot 3**
+* **Spring Web**
+* **Spring Security**
+* **Spring Data MongoDB**
+* **MongoDB Atlas**
+* **Supabase Auth (JWT-based authentication)**
+* **Swagger / OpenAPI**
+* **Slack & Email notifications**
 
 ---
 
-## Database Schema (Sample)
+## 📐 Architecture Overview
 
-| user_id | UUID from Supabase |
-|---|------------|
-| email | User email |
-| password | Encrypted password |
-| is_admin | Boolean flag |
-| hotels | Assigned hotel IDs |
+```
+Client
+  └── Supabase Auth (Login)
+        └── JWT (access_token)
+              └── Spring Boot Backend
+                    ├── Security (JWT validation)
+                    ├── Authorization (Hotel-level roles)
+                    ├── MongoDB Atlas
+                    ├── Slack / Email notifications
+```
 
-### hotels
-
-| Field      | Description        |
-| ---------- | ------------------ |
-| id         | Hotel ID           |
-| name       | Hotel name         |
-| address    | Hotel address      |
-| created_at | Creation timestamp |
-
----
-
-## API Endpoints
-
-### Health Check
-
-**GET** `/health`
-
-* Checks whether the backend is running correctly.
+* Authentication is handled by **Supabase**
+* Backend validates Supabase JWTs
+* Authorization is enforced **per hotel**
+* Notifications are sent on booking creation
 
 ---
 
-### Create / Update Hotel
+## 🔐 Authentication & Authorization
 
-**POST** `/api/hotels`
+### Authentication
 
-**Access:** `ADMIN`
+* Users authenticate directly with **Supabase**
+* Client sends Supabase `access_token` to backend
+* Backend validates:
 
-**Request Body:**
+  * JWT signature
+  * Issuer
+  * Expiry
+* User ID is extracted from `sub` claim
+
+### Role Handling
+
+* Admin roles are extracted from:
+
+  ```
+  app_metadata.roles
+  ```
+* Example:
+
+  ```json
+  "app_metadata": {
+    "roles": ["ADMIN"]
+  }
+  ```
+
+### Authorization Model
+
+* Hotel access is managed via a dedicated collection:
+
+  ```
+  hotel_assignments
+  ```
+* Supports:
+
+  * Multiple users per hotel
+  * Multiple hotels per user
+  * Role-based access per hotel (admin, manager, staff, reception)
+
+---
+
+## 🧠 Key Design Decisions
+
+### Hotel Assignments vs Embedded Users
+
+Instead of embedding user IDs inside the `hotels` collection, a separate `hotel_assignments` collection is used.
+
+**Why:**
+
+* Supports many-to-many relationships
+* Enables role-based access per hotel
+* Avoids unbounded document growth
+* Keeps authorization logic clean and queryable
+
+This approach aligns with real-world hospitality systems.
+
+---
+
+## 📦 Data Model (Simplified)
+
+### Hotel
 
 ```json
 {
   "id": "hotel-001",
   "name": "Otelier Grand",
-  "address": "Mumbai, India"
+  "address": "Mumbai"
 }
 ```
 
-**Errors:**
-
-* User is not an ADMIN
-
----
-
-### Assign Hotel to User
-
-**POST** `/api/hotel-assignments`
-
-**Access:** `ADMIN`
-
-**Request Body:**
+### Booking
 
 ```json
 {
-  "userId": "<uuid>",
+  "hotelId": "hotel-001",
+  "guestName": "John Doe",
+  "roomNumber": "101",
+  "checkInDate": "2025-01-10",
+  "checkOutDate": "2025-01-12",
+  "status": "CONFIRMED"
+}
+```
+
+### Hotel Assignment
+
+```json
+{
+  "userId": "supabase-user-id",
   "hotelId": "hotel-001",
   "role": "staff"
 }
 ```
 
-**Errors:**
-
-* Not an ADMIN
-* Hotel already assigned
-* Hotel does not exist
-
 ---
 
-### Get Assigned Hotels
+## 🔌 API Endpoints
 
-**GET** `/api/hotel-assignments/my-hotels`
-
-**Access:** Authenticated user
-
-Returns a list of hotels the user is assigned to.
-
----
-
-### Create Booking
-
-**POST** `/api/hotels/{hotel-id}/bookings`
-
-**Access:** `staff` role for the given hotel
-
-**Request Body:**
-
-```json
-{
-  "guestName": "John Doe",
-  "guestEmail": "john@example.com",
-  "roomNumber": 101,
-  "checkInDate": "2025-01-10",
-  "checkOutDate": "2025-01-12"
-}
-```
-
-**Errors:**
-
-* No access role for hotel
-* Booking conflict
-
----
-
-### Get Bookings
-
-**GET** `/api/hotels/{hotel-id}/bookings`
-
-**Access:** `staff` role for the given hotel
-
-**Errors:**
-
-* No access role
-
----
-
-## Project Structure
+### Health
 
 ```
-src/main/java/space/jayampatel/otelier
-├── config        # Application and security configuration
-├── controller    # REST controllers
-├── dto           # Request/response DTOs
-├── exception     # Custom exceptions and handlers
-├── model         # MongoDB models
-├── repository    # MongoDB repositories
-├── security      # JWT and Supabase security logic
-├── service       # Business logic
-└── OtelierApplication.java
+GET /health
 ```
 
 ---
 
-## Configuration
+### Hotels (Admin only)
 
-### application.properties
-
-All sensitive configuration is stored in `application.properties`:
-
-* MongoDB connection string
-* Database password
-* Supabase configuration
-
-Example:
+#### Create Hotel
 
 ```
-mongodb.uri=mongodb+srv://superuser:<db_password>@main.zw5svjt.mongodb.net
+POST /api/hotels
+Authorization: Bearer <ADMIN_JWT>
 ```
 
 ---
 
-## Running the Project
+### Hotel Assignments (Admin only)
 
-1. Clone the repository
-2. Configure `application.properties`
-3. Run the application:
+#### Assign User to Hotel
+
+```
+POST /api/hotel-assignments
+Authorization: Bearer <ADMIN_JWT>
+```
+
+---
+
+### Bookings
+
+#### List Bookings
+
+```
+GET /api/hotels/{hotelId}/bookings
+Authorization: Bearer <JWT>
+```
+
+Supports optional date filtering.
+
+#### Create Booking
+
+```
+POST /api/hotels/{hotelId}/bookings
+Authorization: Bearer <JWT>
+```
+
+Requires `staff` or `reception` role.
+
+Includes:
+
+* Date validation
+* Conflict detection
+* Notifications
+
+---
+
+## 🔔 Notifications
+
+### Slack
+
+* Triggered when a booking is created
+* Uses Slack Incoming Webhooks
+* Non-blocking and failure-safe
+
+### Email
+
+* Sends booking notification to support email
+* Uses Spring Boot Mail
+* Optional (disabled if not configured)
+
+---
+
+## 🧪 API Documentation (Swagger)
+
+Swagger UI is enabled for easy testing and review.
+
+```
+http://localhost:8080/swagger-ui/index.html
+```
+
+Supports:
+
+* JWT Authorization
+* Try-it-out for secured endpoints
+
+---
+
+## ⚙️ Configuration & Environment Variables
+
+All secrets are managed via **environment variables**.
+
+### Required Environment Variables
 
 ```bash
-mvn spring-boot:run
+# MongoDB
+MONGODB_URI=
+
+# Supabase
+SUPABASE_URL=
+SUPABASE_ANON_KEY=
+SUPABASE_JWT_SECRET=
+SUPABASE_ISSUER=
+
+# Slack
+NOTIFICATION_SLACK_WEBHOOK_URL=
+
+# Email (optional)
+SPRING_MAIL_USERNAME=
+SPRING_MAIL_PASSWORD=
+SUPPORT_EMAIL=
 ```
+
+No secrets are committed to the repository.
 
 ---
 
-## References
+## ▶️ Running Locally
 
-* Supabase Auth with Spring Boot: [https://medium.com/@curteisyang/implementing-supabase-authentication-in-spring-boot-6eb5ddaabfc7](https://medium.com/@curteisyang/implementing-supabase-authentication-in-spring-boot-6eb5ddaabfc7)
+```bash
+./mvnw spring-boot:run
+```
+
+Ensure environment variables are set before starting.
+
+---
+
+## 🎯 Assignment Coverage
+
+### Core Requirements
+
+* ✅ JWT authentication
+* ✅ MongoDB Atlas integration
+* ✅ Booking APIs (GET + POST)
+* ✅ Conflict detection
+* ✅ Notifications (Slack & Email)
+* ✅ Clean error handling
+* ✅ Swagger documentation
+
+### Bonus
+
+* ✅ Structured logging
+* ✅ Role-based authorization
+* ✅ Clean architecture
+* ⏳ Docker (optional)
+* ⏳ CI/CD (optional)
+
+---
+
+## 🧠 Notes
+
+* The system is designed as a **mini-product**, not just a demo.
+* Assumptions were made where appropriate and documented.
+* The backend is fully explainable and debuggable.
